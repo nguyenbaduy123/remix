@@ -19,6 +19,7 @@ defmodule Remix do
 
   defmodule Worker do
     use GenServer
+    require Logger
 
     defmodule State, do: defstruct last_mtime: nil
 
@@ -35,7 +36,16 @@ defmodule Remix do
       current_mtime = get_current_mtime()
 
       state = if state.last_mtime != current_mtime do
-        comp_elixir = fn -> Mix.Tasks.Compile.Elixir.run(["--ignore-module-conflict", "--verbose", "--warnings-as-errors"]) end
+        comp_elixir =
+          fn ->
+            Mix.Tasks.Compile.Elixir.run(["--ignore-module-conflict", "--verbose", "--warnings-as-errors"])
+            |> case do
+              {:error, _} ->
+                Logger.error("COMPILE ERROR !!!")
+              _ ->
+                Logger.info("COMPILE SUCCESS !!!", ansi_color: :green)
+            end
+          end
         comp_escript = fn -> Mix.Tasks.Escript.Build.run([]) end
 
         case Application.get_all_env(:remix)[:silent] do
