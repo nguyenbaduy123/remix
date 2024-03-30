@@ -8,7 +8,7 @@ defmodule Remix do
 
     children = [
       # Define workers and child supervisors to be supervised
-      worker(Remix.Worker, [])
+      {Remix.Worker, []}
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
@@ -22,16 +22,20 @@ defmodule Remix do
 
     defmodule State, do: defstruct last_mtime: nil
 
-    def start_link do
+    def init(state) do
+      {:ok, state}
+    end
+
+    def start_link(_) do
       Process.send_after(__MODULE__, :poll_and_reload, 10000)
       GenServer.start_link(__MODULE__, %State{}, name: Remix.Worker)
     end
 
     def handle_info(:poll_and_reload, state) do
-      current_mtime = get_current_mtime
+      current_mtime = get_current_mtime()
 
       state = if state.last_mtime != current_mtime do
-        comp_elixir = fn -> Mix.Tasks.Compile.Elixir.run(["--ignore-module-conflict"]) end
+        comp_elixir = fn -> Mix.Tasks.Compile.Elixir.run(["--ignore-module-conflict", "--verbose", "--warnings-as-errors"]) end
         comp_escript = fn -> Mix.Tasks.Escript.Build.run([]) end
 
         case Application.get_all_env(:remix)[:silent] do
